@@ -8,6 +8,7 @@ const { createSuccessResponse, createErrorResponse } = require('../utils/respons
 const { sendAppointmentConfirmation } = require('../services/whatsapp.service');
 const { generateAndUploadInvoice } = require('../services/invoice.service');
 const { createCalendarEvent } = require('../services/calendar.service');
+const { sendAppointmentEmail } = require('../services/email.service');
 
 /**
  * Create Razorpay Order for Appointment Booking
@@ -396,6 +397,34 @@ exports.verifyPayment = async (req, res) => {
         whatsappMessage = whatsappMessage + ' Calendar invite sent to your email!';
       } else {
         logger.warn(`[VerifyPayment] Google Calendar event creation failed: ${calendarResult.error}`);
+      }
+
+      // Step 4: Send email notifications to patient and doctor
+      logger.info('[VerifyPayment] Sending email notifications...');
+      const emailResult = await sendAppointmentEmail({
+        patientName: appointment.patientId.name,
+        patientEmail: appointment.patientId.email,
+        doctorName: appointment.doctorId.name,
+        doctorEmail: appointment.doctorId.email,
+        doctorSpecialization: appointment.doctorId.specialization,
+        appointmentDate: appointment.appointmentDate,
+        appointmentTime: appointment.appointmentTime,
+        consultationType: appointment.consultationType,
+        appointmentId: appointment._id.toString(),
+        amount: appointment.amount
+      });
+
+      if (emailResult.success) {
+        logger.info(`[VerifyPayment] Emails sent successfully. Patient: ${emailResult.patientSent}, Doctor: ${emailResult.doctorSent}`);
+        if (emailResult.patientSent && emailResult.doctorSent) {
+          whatsappMessage = whatsappMessage + ' Confirmation emails sent to patient and doctor!';
+        } else if (emailResult.patientSent) {
+          whatsappMessage = whatsappMessage + ' Confirmation email sent to patient!';
+        } else if (emailResult.doctorSent) {
+          whatsappMessage = whatsappMessage + ' Confirmation email sent to doctor!';
+        }
+      } else {
+        logger.warn(`[VerifyPayment] Email notification failed: ${emailResult.message}`);
       }
 
     } catch (whatsappError) {
