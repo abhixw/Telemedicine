@@ -18,6 +18,8 @@ import { patientAPI } from '../../../api';
 const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [whatsappNotification, setWhatsappNotification] = useState('');
+  const [invoiceUrl, setInvoiceUrl] = useState('');
   const [bookingData, setBookingData] = useState({
     date: '',
     time: '',
@@ -53,7 +55,10 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
     '11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM',
     '12:00 PM', '12:15 PM', '12:30 PM', '12:45 PM', '01:00 PM', '01:15 PM', '01:30 PM', '01:45 PM',
     '02:00 PM', '02:15 PM', '02:30 PM', '02:45 PM', '03:00 PM', '03:15 PM', '03:30 PM', '03:45 PM', 
-    '04:00 PM', '04:15 PM', '04:30 PM', '04:45 PM', '05:00 PM'
+    '04:00 PM', '04:15 PM', '04:30 PM', '04:45 PM', '05:00 PM', '05:15 PM', '05:30 PM', '05:45 PM',
+    '06:00 PM', '06:15 PM', '06:30 PM', '06:45 PM', '07:00 PM', '07:15 PM', '07:30 PM', '07:45 PM',
+    '08:00 PM', '08:15 PM', '08:30 PM', '08:45 PM', '09:00 PM', '09:15 PM', '09:30 PM', '09:45 PM',
+    '10:00 PM', '10:15 PM', '10:30 PM', '10:45 PM', '11:00 PM', '11:15 PM', '11:30 PM', '11:45 PM'
   ];
 
   useEffect(() => {
@@ -61,12 +66,12 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
       if (bookingData.date && doctor?._id) {
         setLoadingSlots(true);
         try {
-          // Fetch booked slots for the selected doctor and date
+  
           const response = await patientAPI.getBookedSlots(doctor._id, bookingData.date);
           const booked = response.data?.bookedSlots || [];
           setBookedSlots(booked);
           
-          // Filter out booked slots from all time slots
+        
           const available = allTimeSlots.filter(slot => !booked.includes(slot));
           setAvailableSlots(available);
           
@@ -74,7 +79,7 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
         } catch (error) {
           console.error('Error fetching booked slots:', error);
           toast.error('Failed to load available slots');
-          // If there's an error, show all slots as available
+         
           setAvailableSlots(allTimeSlots);
           setBookedSlots([]);
         } finally {
@@ -90,6 +95,8 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
     onClose();
     setStep(1);
     setBookingData({ date: '', time: '', consultationType: 'in-person' });
+    setWhatsappNotification('');
+    setInvoiceUrl('');
     setAvailableSlots([]);
     setBookedSlots([]);
     setLoadingSlots(false);
@@ -201,9 +208,30 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
                 appointmentId: verifyResponse.appointmentId
               });
 
+              // Store WhatsApp notification message
+              const notificationMsg = verifyResponse.data?.notification || 
+                                     (verifyResponse.data?.whatsappSent ? 
+                                       '📱 Check your WhatsApp for appointment confirmation details!' : 
+                                       'Check your email for confirmation details.');
+              setWhatsappNotification(notificationMsg);
+
+              // Store invoice URL if available
+              if (verifyResponse.data?.invoiceUrl) {
+                setInvoiceUrl(verifyResponse.data.invoiceUrl);
+              }
+
               setIsLoading(false);
               setStep(4); // Success step
-              toast.success('Appointment booked successfully!');
+              
+              // Show success toast with WhatsApp message if sent
+              if (verifyResponse.data?.whatsappSent) {
+                toast.success('🎉 Appointment booked! Check your WhatsApp for invoice PDF.', {
+                  duration: 5000,
+                  icon: '📱'
+                });
+              } else {
+                toast.success('Appointment booked successfully!');
+              }
             } else {
               throw new Error('Payment verification failed');
             }
@@ -551,10 +579,32 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
                       <div className="w-16 h-16 bg-[#DCFCE7] rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-[#16A34A]" />
                       </div>
-                      <h3 className="text-[20px] font-semibold text-[#0F172A] mb-2">Booking Confirmed!</h3>
-                      <p className="text-[14px] text-[#64748B] mb-6">
-                        Your appointment has been successfully booked. Check your email for confirmation details.
+                      <h3 className="text-[20px] font-semibold text-[#0F172A] mb-2">Booking Confirmed! 🎉</h3>
+                      <p className="text-[14px] text-[#64748B] mb-4">
+                        Your appointment has been successfully booked.
                       </p>
+                      {whatsappNotification && (
+                        <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                          <p className="text-[14px] text-green-700 font-medium flex items-center justify-center gap-2">
+                            <span className="text-xl">💬</span>
+                            {whatsappNotification}
+                          </p>
+                        </div>
+                      )}
+                      {invoiceUrl && (
+                        <a
+                          href={invoiceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="inline-flex items-center gap-2 px-6 py-3 mb-4 bg-white border-2 border-blue-500 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-all"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download Invoice PDF
+                        </a>
+                      )}
                       <button
                         onClick={handleClose}
                         className="px-6 py-3 bg-[#2563EB] text-white rounded-lg font-medium hover:bg-[#1D4ED8] transition-all"
