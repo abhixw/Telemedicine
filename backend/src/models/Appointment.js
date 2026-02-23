@@ -73,6 +73,13 @@ const appointmentSchema = new mongoose.Schema({
   meetingId: {
     type: String
   },
+  // Google Calendar integration
+  calendarEventId: {
+    type: String
+  },
+  calendarEventLink: {
+    type: String
+  },
   // Video consultation tracking
   callStarted: {
     type: Boolean,
