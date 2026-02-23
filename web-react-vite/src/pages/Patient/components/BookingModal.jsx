@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -16,6 +17,7 @@ import toast from 'react-hot-toast';
 import { patientAPI } from '../../../api';
 
 const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [whatsappNotification, setWhatsappNotification] = useState('');
@@ -96,6 +98,11 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
     setAvailableSlots([]);
     setBookedSlots([]);
     setLoadingSlots(false);
+  };
+
+  const handleGoToDashboard = () => {
+    handleClose();
+    navigate('/patient/appointments');
   };
 
   const loadRazorpayScript = () => {
@@ -602,7 +609,7 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
                         </a>
                       )}
                       <button
-                        onClick={handleClose}
+                        onClick={handleGoToDashboard}
                         className="px-6 py-3 bg-[#2563EB] text-white rounded-lg font-medium hover:bg-[#1D4ED8] transition-all"
                       >
                         Go to Dashboard
