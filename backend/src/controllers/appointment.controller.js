@@ -187,7 +187,6 @@ exports.verifyPayment = async (req, res) => {
     const patientId = req.user._id;
     logger.info(`[VerifyPayment] Patient ID: ${patientId}`);
 
-    // Validate required fields - check for missing or empty
     if (!razorpay_order_id || !razorpay_payment_id) {
       logger.warn('[VerifyPayment] Missing order_id or payment_id');
       return res.status(400).json(
@@ -195,17 +194,14 @@ exports.verifyPayment = async (req, res) => {
       );
     }
     
-    // Check if signature is missing or empty
     if (!razorpay_signature || razorpay_signature === '') {
       logger.warn('[VerifyPayment] Missing or empty signature');
       
-      // In test mode, if signature is missing, verify payment with Razorpay API
       if (process.env.NODE_ENV !== 'production') {
         logger.info('[VerifyPayment] Signature missing in test mode, verifying payment via Razorpay API');
         console.log('Attempting to verify via Razorpay API...');
         
         try {
-          // Fetch payment details from Razorpay
           const payment = await razorpay.payments.fetch(razorpay_payment_id);
           logger.info('[VerifyPayment] Payment fetched from Razorpay:',  {
             id: payment.id,
