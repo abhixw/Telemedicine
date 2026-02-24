@@ -69,20 +69,34 @@ const MyAppointments = () => {
 
       allAppointments.forEach(apt => {
         // Parse appointment date and time together
-        const aptDate = new Date(apt.appointmentDate);
+        // Handle both appointmentDate and appointmentDateTime
+        let aptDate;
+        
+        if (apt.appointmentDateTime) {
+          aptDate = new Date(apt.appointmentDateTime);
+        } else {
+          // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+          const dateStr = apt.appointmentDate.split('T')[0];
+          const [year, month, day] = dateStr.split('-').map(Number);
+          // Create date in local timezone
+          aptDate = new Date(year, month - 1, day);
+        }
+        
         const timeStr = apt.appointmentTime;
         
         // Parse time (handles formats like "09:00 AM", "02:00 PM")
-        const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (timeMatch) {
-          let hours = parseInt(timeMatch[1]);
-          const minutes = parseInt(timeMatch[2]);
-          const meridiem = timeMatch[3].toUpperCase();
-          
-          if (meridiem === 'PM' && hours !== 12) hours += 12;
-          if (meridiem === 'AM' && hours === 12) hours = 0;
-          
-          aptDate.setHours(hours, minutes, 0, 0);
+        if (timeStr && typeof timeStr === 'string') {
+          const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const meridiem = timeMatch[3].toUpperCase();
+            
+            if (meridiem === 'PM' && hours !== 12) hours += 12;
+            if (meridiem === 'AM' && hours === 12) hours = 0;
+            
+            aptDate.setHours(hours, minutes, 0, 0);
+          }
         }
         
         const consultationDuration = apt.consultationDuration || 15; // Default 15 minutes
@@ -106,8 +120,9 @@ const MyAppointments = () => {
         cancelled: categorized.cancelled.length
       });
       
-      // Fetch unread counts for all appointments
-      fetchUnreadCounts(allAppointments);
+      // Skip unread counts to prevent excessive API calls
+      // Uncomment below if you need unread message counts
+      // fetchUnreadCounts(allAppointments);
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
       toast.error('Failed to load appointments');
@@ -142,7 +157,17 @@ const MyAppointments = () => {
   // Transform backend appointment to UI format
   const transformAppointment = (apt, overrideStatus = null) => {
     const doctor = apt.doctorId || {};
-    const date = new Date(apt.appointmentDate);
+    // Handle both appointmentDate and appointmentDateTime formats
+    let date;
+    if (apt.appointmentDateTime) {
+      date = new Date(apt.appointmentDateTime);
+    } else {
+      // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+      const dateStr = apt.appointmentDate.split('T')[0];
+      const [year, month, day] = dateStr.split('-').map(Number);
+      // Create date in local timezone
+      date = new Date(year, month - 1, day);
+    }
     
     // Format date as "Wed, April 26, 2026"
     const formattedDate = date.toLocaleDateString('en-US', {
@@ -151,6 +176,14 @@ const MyAppointments = () => {
       month: 'long',
       day: 'numeric'
     });
+    
+    // Extract time from appointmentDateTime if appointmentTime is missing
+    const appointmentTime = apt.appointmentTime || 
+      (apt.appointmentDateTime ? date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      }) : 'Time not set');
 
     // Get doctor profile image URL or placeholder
     const avatar = doctor.profileImage 
@@ -175,7 +208,7 @@ const MyAppointments = () => {
       specialization: doctor.specialization || 'General Physician',
       hospital: 'City General Hospital', // From mock - can be added to doctor model
       date: formattedDate,
-      time: apt.appointmentTime,
+      time: appointmentTime,
       type: apt.consultationType === 'video' ? 'Video Consultation' : 'In-Person Appointment',
       consultationType: apt.consultationType,
       rating: 4.5, // From mock - can be calculated from reviews
@@ -188,8 +221,8 @@ const MyAppointments = () => {
       orderId: apt.orderId,
       cancelReason: apt.cancellationReason || null,
       badge: null, // Can add based on doctor rating
-      appointmentDate: apt.appointmentDate,
-      appointmentTime: apt.appointmentTime,
+      appointmentDate: apt.appointmentDate || apt.appointmentDateTime,
+      appointmentTime: appointmentTime,
       consultationDuration: apt.consultationDuration || 15,
       // Reschedule fields
       rescheduleStatus: apt.rescheduleStatus || 'none',
@@ -225,18 +258,25 @@ const MyAppointments = () => {
 
   // Get time remaining in human-readable format
   const getTimeRemaining = (appointmentDate, appointmentTime) => {
-    const aptDate = new Date(appointmentDate);
-    const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+    const dateStr = appointmentDate.split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Create date in local timezone
+    const aptDate = new Date(year, month - 1, day);
     
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const meridiem = timeMatch[3].toUpperCase();
+    if (appointmentTime && typeof appointmentTime === 'string') {
+      const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
       
-      if (meridiem === 'PM' && hours !== 12) hours += 12;
-      if (meridiem === 'AM' && hours === 12) hours = 0;
-      
-      aptDate.setHours(hours, minutes, 0, 0);
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const meridiem = timeMatch[3].toUpperCase();
+        
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        
+        aptDate.setHours(hours, minutes, 0, 0);
+      }
     }
     
     const now = new Date();
@@ -268,18 +308,25 @@ const MyAppointments = () => {
 
   // Check if user can join the video consultation and get status message
   const getJoinStatus = (appointmentDate, appointmentTime, consultationDuration = 15) => {
-    const aptDate = new Date(appointmentDate);
-    const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+    const dateStr = appointmentDate.split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Create date in local timezone
+    const aptDate = new Date(year, month - 1, day);
     
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const meridiem = timeMatch[3].toUpperCase();
+    if (appointmentTime && typeof appointmentTime === 'string') {
+      const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
       
-      if (meridiem === 'PM' && hours !== 12) hours += 12;
-      if (meridiem === 'AM' && hours === 12) hours = 0;
-      
-      aptDate.setHours(hours, minutes, 0, 0);
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const meridiem = timeMatch[3].toUpperCase();
+        
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        
+        aptDate.setHours(hours, minutes, 0, 0);
+      }
     }
     
     const now = new Date();
