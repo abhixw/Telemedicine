@@ -123,13 +123,19 @@ const AdminAppointments = () => {
 
     if (dateFilter === 'today') {
       filtered = filtered.filter(apt => {
-        const aptDate = new Date(apt.appointmentDate);
+        // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+        const dateStr = apt.appointmentDate.split('T')[0];
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const aptDate = new Date(year, month - 1, day);
         aptDate.setHours(0, 0, 0, 0);
         return aptDate.getTime() === today.getTime();
       });
     } else if (dateFilter === 'tomorrow') {
       filtered = filtered.filter(apt => {
-        const aptDate = new Date(apt.appointmentDate);
+        // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+        const dateStr = apt.appointmentDate.split('T')[0];
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const aptDate = new Date(year, month - 1, day);
         aptDate.setHours(0, 0, 0, 0);
         return aptDate.getTime() === tomorrow.getTime();
       });
