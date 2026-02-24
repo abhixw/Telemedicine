@@ -117,4 +117,130 @@ export const patientAPI = {
     const response = await api.put(`/v1/appointments/${appointmentId}/reject-reschedule`);
     return response.data;
   },
+
+  // ========== Medical Report APIs ==========
+
+  /**
+   * Upload a medical report
+   * @param {FormData} formData - Form data with file and metadata
+   * @returns {Promise} Uploaded report
+   */
+  uploadMedicalReport: async (formData) => {
+    const response = await api.post('/v1/medical-reports/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get all medical reports for the logged-in patient
+   * @param {Object} params - Query parameters (status, reportType, page, limit)
+   * @returns {Promise} Reports list
+   */
+  getMedicalReports: async (params = {}) => {
+    const response = await api.get('/v1/medical-reports', { params });
+    return response.data;
+  },
+
+  /**
+   * Get a specific medical report with analysis
+   * @param {String} reportId - Report ID
+   * @returns {Promise} Report with analysis
+   */
+  getMedicalReportById: async (reportId) => {
+    const response = await api.get(`/v1/medical-reports/${reportId}`);
+    return response.data;
+  },
+
+  /**
+   * Get report analysis and recommendations
+   * @param {String} reportId - Report ID
+   * @returns {Promise} Report analysis with recommended doctors
+   */
+  getReportAnalysis: async (reportId) => {
+    const response = await api.get(`/v1/medical-reports/${reportId}/analysis`);
+    return response.data;
+  },
+
+  /**
+   * Get doctors by specialty
+   * @param {String} specialty - Specialty name
+   * @param {Object} params - Query parameters (page, limit)
+   * @returns {Promise} Doctors list
+   */
+  getDoctorsBySpecialty: async (specialty, params = {}) => {
+    const response = await api.get('/v1/medical-reports/doctors/by-specialty', {
+      params: { specialty, ...params }
+    });
+    return response.data;
+  },
+
+  /**
+   * Record doctor selection for a report
+   * @param {String} reportId - Report ID
+   * @param {String} doctorId - Doctor ID
+   * @param {String} specialty - Specialty
+   * @returns {Promise} Updated analysis
+   */
+  selectDoctorForReport: async (reportId, doctorId, specialty) => {
+    const response = await api.post(`/v1/medical-reports/${reportId}/select-doctor`, {
+      doctorId,
+      specialty
+    });
+    return response.data;
+  },
+
+  /**
+   * Record manual specialty selection
+   * @param {String} reportId - Report ID
+   * @param {String} specialty - Selected specialty
+   * @returns {Promise} Doctors list for the specialty
+   */
+  selectSpecialtyManually: async (reportId, specialty) => {
+    const response = await api.post(`/v1/medical-reports/${reportId}/select-specialty`, {
+      specialty
+    });
+    return response.data;
+  },
+
+  /**
+   * Get available medical specialties
+   * @returns {Promise} Specialties list
+   */
+  getMedicalSpecialties: async () => {
+    const response = await api.get('/v1/medical-reports/specialties');
+    return response.data;
+  },
+
+  /**
+   * Get medical history
+   * @param {Object} params - Query parameters (page, limit)
+   * @returns {Promise} Medical history
+   */
+  getMedicalHistory: async (params = {}) => {
+    const response = await api.get('/v1/medical-reports/history', { params });
+    return response.data;
+  },
+
+  /**
+   * Delete a medical report
+   * @param {String} reportId - Report ID
+   * @returns {Promise} Success message
+   */
+  deleteMedicalReport: async (reportId) => {
+    const response = await api.delete(`/v1/medical-reports/${reportId}`);
+    return response.data;
+  },
+
+  /**
+   * Re-analyze a report
+   * @param {String} reportId - Report ID
+   * @returns {Promise} Updated analysis
+   */
+  reanalyzeMedicalReport: async (reportId) => {
+    const response = await api.post(`/v1/medical-reports/${reportId}/reanalyze`);
+    return response.data;
+  },
 };
