@@ -163,7 +163,10 @@ const DoctorAppointments = () => {
         now.setHours(0, 0, 0, 0);
 
         appointmentsList.forEach(apt => {
-          const aptDate = new Date(apt.appointmentDate);
+          // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+          const dateStr = apt.appointmentDate.split('T')[0];
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const aptDate = new Date(year, month - 1, day);
           aptDate.setHours(0, 0, 0, 0);
 
           if (apt.status === 'cancelled') {
@@ -345,18 +348,24 @@ const DoctorAppointments = () => {
   ];
 
   const getTimeRemaining = (appointmentDate, appointmentTime) => {
-    const aptDate = new Date(appointmentDate);
-    const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+    const dateStr = appointmentDate.split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const aptDate = new Date(year, month - 1, day);
     
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const meridiem = timeMatch[3].toUpperCase();
+    if (appointmentTime && typeof appointmentTime === 'string') {
+      const timeMatch = appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
       
-      if (meridiem === 'PM' && hours !== 12) hours += 12;
-      if (meridiem === 'AM' && hours === 12) hours = 0;
-      
-      aptDate.setHours(hours, minutes, 0, 0);
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const meridiem = timeMatch[3].toUpperCase();
+        
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        
+        aptDate.setHours(hours, minutes, 0, 0);
+      }
     }
     
     const now = new Date();
@@ -389,20 +398,25 @@ const DoctorAppointments = () => {
     }
     
     // Check timing (allow joining 15 minutes before)
-    const appointmentDateTime = new Date(appointment.appointmentDate);
+    // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+    const dateStr = appointment.appointmentDate.split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const appointmentDateTime = new Date(year, month - 1, day);
     const timeStr = appointment.appointmentTime;
     
     // Parse time (handles formats like "09:00 AM", "03:00 PM")
-    const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const meridiem = timeMatch[3].toUpperCase();
-      
-      if (meridiem === 'PM' && hours !== 12) hours += 12;
-      if (meridiem === 'AM' && hours === 12) hours = 0;
-      
-      appointmentDateTime.setHours(hours, minutes, 0, 0);
+    if (timeStr && typeof timeStr === 'string') {
+      const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const meridiem = timeMatch[3].toUpperCase();
+        
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        
+        appointmentDateTime.setHours(hours, minutes, 0, 0);
+      }
     }
     
     const now = new Date();
