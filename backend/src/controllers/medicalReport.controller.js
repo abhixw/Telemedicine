@@ -1,4 +1,4 @@
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { s3Client, S3_BUCKET } = require('../config/s3');
 const MedicalReport = require('../models/MedicalReport');
 const ReportAnalysis = require('../models/ReportAnalysis');
@@ -511,6 +511,22 @@ exports.deleteReport = async (req, res) => {
         
         if (!report) {
             return errorResponse(res, 'Report not found', 404);
+        }
+        
+        // Delete file from S3
+        try {
+            if (report.s3Key) {
+                const deleteParams = {
+                    Bucket: S3_BUCKET,
+                    Key: report.s3Key
+                };
+                
+                await s3Client.send(new DeleteObjectCommand(deleteParams));
+                logger.info(`File deleted from S3: ${report.s3Key}`);
+            }
+        } catch (s3Error) {
+            logger.error('Error deleting file from S3:', s3Error);
+            // Continue with database deletion even if S3 deletion fails
         }
         
         // Soft delete
