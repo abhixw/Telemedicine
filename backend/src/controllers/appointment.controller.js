@@ -7,7 +7,6 @@ const logger = require('../config/logger');
 const { createSuccessResponse, createErrorResponse } = require('../utils/response.util');
 const { sendAppointmentConfirmation } = require('../services/whatsapp.service');
 const { generateAndUploadInvoice } = require('../services/invoice.service');
-const { createCalendarEvent } = require('../services/calendar.service');
 const { sendAppointmentEmail } = require('../services/email.service');
 
 /**
@@ -371,36 +370,8 @@ exports.verifyPayment = async (req, res) => {
         whatsappMessage = 'Appointment confirmed! (WhatsApp notification could not be sent)';
       }
 
-      // Step 3: Create Google Calendar event
-      logger.info('[VerifyPayment] Creating Google Calendar event...');
-      const calendarResult = await createCalendarEvent({
-        patientName: appointment.patientId.name,
-        patientEmail: appointment.patientId.email,
-        patientPhone: appointment.patientId.phone,
-        doctorName: appointment.doctorId.name,
-        doctorEmail: appointment.doctorId.email,
-        appointmentDate: appointment.appointmentDate,
-        appointmentTime: appointment.appointmentTime,
-        consultationType: appointment.consultationType,
-        appointmentId: appointment._id.toString()
-      });
-
-      if (calendarResult.success) {
-        logger.info(`[VerifyPayment] Google Calendar event created. Event ID: ${calendarResult.eventId}`);
-        
-        // Update appointment with calendar event details
-        await Appointment.findByIdAndUpdate(appointment._id, {
-          calendarEventId: calendarResult.eventId,
-          calendarEventLink: calendarResult.eventLink
-        });
-        
-        whatsappMessage = whatsappMessage + ' Calendar invite sent to your email!';
-      } else {
-        logger.warn(`[VerifyPayment] Google Calendar event creation failed: ${calendarResult.error}`);
-      }
-
-      // Step 4: Send email notifications to patient and doctor
-      logger.info('[VerifyPayment] Sending email notifications...');
+      // Step 3: Send email notifications with calendar invite (.ics file attached)
+      logger.info('[VerifyPayment] Sending email notifications with calendar invite...');
       const emailResult = await sendAppointmentEmail({
         patientName: appointment.patientId.name,
         patientEmail: appointment.patientId.email,
@@ -417,11 +388,11 @@ exports.verifyPayment = async (req, res) => {
       if (emailResult.success) {
         logger.info(`[VerifyPayment] Emails sent successfully. Patient: ${emailResult.patientSent}, Doctor: ${emailResult.doctorSent}`);
         if (emailResult.patientSent && emailResult.doctorSent) {
-          whatsappMessage = whatsappMessage + ' Confirmation emails sent to patient and doctor!';
+          whatsappMessage = whatsappMessage + ' 📧 Confirmation emails with calendar invite sent!';
         } else if (emailResult.patientSent) {
-          whatsappMessage = whatsappMessage + ' Confirmation email sent to patient!';
+          whatsappMessage = whatsappMessage + ' 📧 Confirmation email with calendar invite sent to patient!';
         } else if (emailResult.doctorSent) {
-          whatsappMessage = whatsappMessage + ' Confirmation email sent to doctor!';
+          whatsappMessage = whatsappMessage + ' 📧 Confirmation email sent to doctor!';
         }
       } else {
         logger.warn(`[VerifyPayment] Email notification failed: ${emailResult.message}`);
