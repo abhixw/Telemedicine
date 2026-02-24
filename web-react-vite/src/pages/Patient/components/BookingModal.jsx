@@ -16,7 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import { patientAPI } from '../../../api';
 
-const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
+const BookingModal = ({ isOpen, onClose, doctor, onConfirm, relatedReportId }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,7 +132,8 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm }) => {
         amount: doctor.hourlyRate || 500,
         appointmentDate: bookingData.date,
         appointmentTime: bookingData.time,
-        consultationType: bookingData.consultationType
+        consultationType: bookingData.consultationType,
+        ...(relatedReportId && { relatedMedicalReport: relatedReportId })
       });
 
       console.log('Order API Response:', orderResponse);
