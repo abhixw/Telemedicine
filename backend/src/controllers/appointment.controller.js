@@ -18,10 +18,10 @@ exports.createAppointmentOrder = async (req, res) => {
   try {
     logger.info(`[CreateOrder] Starting order creation for user ${req.user?._id}`);
     
-    const { doctorId, amount, appointmentDate, appointmentTime, consultationType } = req.body;
+    const { doctorId, amount, appointmentDate, appointmentTime, consultationType, relatedMedicalReport } = req.body;
     const patientId = req.user._id; // From auth middleware
 
-    logger.debug(`[CreateOrder] Request data: doctorId=${doctorId}, amount=${amount}, consultationType=${consultationType}`);
+    logger.debug(`[CreateOrder] Request data: doctorId=${doctorId}, amount=${amount}, consultationType=${consultationType}, relatedMedicalReport=${relatedMedicalReport}`);
 
 
     const missingFields = [];
@@ -85,7 +85,8 @@ exports.createAppointmentOrder = async (req, res) => {
         patientId: patientId.toString(),
         appointmentDate,
         appointmentTime,
-        consultationType
+        consultationType,
+        ...(relatedMedicalReport && { relatedMedicalReport: relatedMedicalReport.toString() })
       }
     };
 
@@ -181,7 +182,8 @@ exports.verifyPayment = async (req, res) => {
       appointmentTime,
       consultationType,
       amount,
-      notes
+      notes,
+      relatedMedicalReport
     } = req.body;
 
     const patientId = req.user._id;
@@ -297,10 +299,30 @@ exports.verifyPayment = async (req, res) => {
       orderId: razorpay_order_id,
       paymentStatus: 'paid',
       status: 'confirmed',
-      notes: notes || ''
+      notes: notes || '',
+      ...(relatedMedicalReport && { relatedMedicalReport })
     });
 
     logger.info(`[VerifyPayment] Appointment created with ID: ${appointment._id}`);
+
+    // Update ReportAnalysis if appointment was booked from a medical report
+    if (relatedMedicalReport) {
+      try {
+        const ReportAnalysis = require('../models/ReportAnalysis');
+        const analysis = await ReportAnalysis.findOne({ 
+          reportId: relatedMedicalReport,
+          patientId 
+        });
+        
+        if (analysis) {
+          await analysis.recordAppointmentBooking(appointment._id);
+          logger.info(`[VerifyPayment] Updated report analysis for report ${relatedMedicalReport}`);
+        }
+      } catch (analysisError) {
+        logger.warn(`[VerifyPayment] Failed to update report analysis: ${analysisError.message}`);
+        // Don't fail the appointment creation if analysis update fails
+      }
+    }
 
     // Populate doctor and patient details for response
     await appointment.populate([
