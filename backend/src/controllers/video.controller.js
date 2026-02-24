@@ -156,7 +156,10 @@ class VideoController {
             }
 
             // Check appointment time (allow joining 15 minutes before)
-            const appointmentDateTime = new Date(appointment.appointmentDate);
+            // Extract just the date part (YYYY-MM-DD) to avoid timezone issues
+            const dateStr = appointment.appointmentDate.toISOString().split('T')[0];
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const appointmentDateTime = new Date(year, month - 1, day);
             
             // Parse time format: "09:00 AM" or "03:15 PM"
             const timeMatch = appointment.appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -177,6 +180,7 @@ class VideoController {
             const now = new Date();
             const consultationDuration = appointment.consultationDuration || 15;
             const endTime = new Date(appointmentDateTime.getTime() + consultationDuration * 60 * 1000);
+            const fifteenMinsBefore = new Date(appointmentDateTime.getTime() - 15 * 60 * 1000);
             const timeDiff = appointmentDateTime - now;
             const minutesUntilAppointment = Math.floor(timeDiff / 60000);
 
