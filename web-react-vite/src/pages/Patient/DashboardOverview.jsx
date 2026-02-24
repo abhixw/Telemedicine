@@ -172,6 +172,57 @@ const DashboardOverview = () => {
         })}
       </div>
 
+      {/* AI Medical Report Analysis - Featured Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 rounded-2xl p-6 text-white overflow-hidden relative cursor-pointer"
+        onClick={() => navigate('/patient/medical-reports')}
+        style={{ boxShadow: '0 10px 40px rgba(0,0,0,0.15)' }}
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -ml-24 -mb-24" />
+        
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-6 h-6 text-yellow-300 animate-pulse" />
+              <span className="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full">
+                NEW FEATURE
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold mb-2" style={{letterSpacing: '-0.5px'}}>
+              AI-Powered Medical Report Analysis
+            </h2>
+            <p className="text-white/90 mb-4 max-w-2xl">
+              Upload your medical reports and let our AI recommend the right specialist for you. 
+              Perfect for when you don't know which doctor to consult!
+            </p>
+            <div className="flex items-center gap-3">
+              <button className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-all flex items-center gap-2 text-sm shadow-lg">
+                Upload Report
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button 
+                className="border-2 border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-all text-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate('/patient/medical-history');
+                }}
+              >
+                View History
+              </button>
+            </div>
+          </div>
+          <div className="hidden lg:flex items-center justify-center">
+            <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <FileText className="w-16 h-16 text-white" />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Next Appointment Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
