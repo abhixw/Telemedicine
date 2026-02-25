@@ -149,7 +149,7 @@ const BookingModal = ({ isOpen, onClose, doctor, onConfirm, relatedReportId }) =
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_ID',
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Doctify',
+        name: 'Telemedicine',
         description: `Appointment with ${doctor.name}`,
         order_id: createdOrderId,
         handler: async function (response) {
