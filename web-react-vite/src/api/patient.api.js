@@ -243,4 +243,18 @@ export const patientAPI = {
     const response = await api.post(`/v1/medical-reports/${reportId}/reanalyze`);
     return response.data;
   },
+
+  /**
+   * Analyze symptoms from voice/text input
+   * @param {String} symptoms - Patient symptoms description
+   * @param {String} language - Language code (en, hi, kn)
+   * @returns {Promise} Analysis with doctor recommendations
+   */
+  analyzeSymptoms: async (symptoms, language = 'en') => {
+    const response = await api.post('/v1/medical-reports/analyze-symptoms', {
+      symptoms,
+      language
+    });
+    return response.data;
+  },
 };
