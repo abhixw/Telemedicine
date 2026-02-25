@@ -44,6 +44,7 @@ router.get('/doctors/by-specialty', medicalReportController.getDoctorsBySpecialt
 
 // Patient-only routes
 router.post('/upload', isPatient, upload.single('reportFile'), medicalReportController.uploadReport);
+router.post('/analyze-symptoms', isPatient, medicalReportController.analyzeSymptoms);
 router.get('/history', isPatient, medicalReportController.getMedicalHistory);
 router.get('/', isPatient, medicalReportController.getMyReports);
 router.get('/:reportId', isPatient, medicalReportController.getReportById);
