@@ -74,7 +74,7 @@ const Login = () => {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="user@doctify.com"
+                placeholder="user@Telemedicine.com"
               />
 
               <AuthInput
