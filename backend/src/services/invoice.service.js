@@ -73,7 +73,7 @@ const generateInvoicePDF = async (invoiceData) => {
       const borderColor = '#E5E7EB';
 
       // Header
-      doc.fontSize(28).fillColor(primaryColor).text('DOCTIFY', 50, 50);
+      doc.fontSize(28).fillColor(primaryColor).text('Telemedicine', 50, 50);
       doc.fontSize(10).fillColor('#6B7280').text('Telemedicine Platform', 50, 82);
 
       // Invoice Title
@@ -161,10 +161,10 @@ const generateInvoicePDF = async (invoiceData) => {
       doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor(borderColor).stroke();
       
       doc.fontSize(9).fillColor('#6B7280')
-        .text('Thank you for choosing Doctify!', 50, footerY + 15, { align: 'center', width: 495 });
+        .text('Thank you for choosing Telemedicine!', 50, footerY + 15, { align: 'center', width: 495 });
       
       doc.fontSize(8)
-        .text('For any queries, please contact: support@doctify.com | +91-9508874235', 50, footerY + 30, { 
+        .text('For any queries, please contact: support@Telemedicine.com | +91-9508874235', 50, footerY + 30, { 
           align: 'center', 
           width: 495 
         });
