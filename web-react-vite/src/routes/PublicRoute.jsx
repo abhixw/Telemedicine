@@ -31,9 +31,8 @@ const PublicRoute = ({ children }) => {
   }
 
   // 🔑 IMPORTANT FIX:
-  // If user is logged out and still on auth pages → go to landing page
- 
-
+  // If user is logged out and on login/register pages, allow access
+  // Landing page (/) is always accessible
   return children;
 };
 
