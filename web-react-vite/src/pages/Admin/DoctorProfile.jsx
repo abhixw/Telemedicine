@@ -15,7 +15,13 @@ import {
     Stack,
     Card,
     CardContent,
-    alpha
+    alpha,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Alert
 } from '@mui/material';
 import {
     ArrowBack,
@@ -39,27 +45,25 @@ import {
     People,
     ChatBubbleOutline,
     Assignment,
-    CheckCircle
+    CheckCircle,
+    Cancel as RejectIcon,
+    ThumbUp as ApproveIcon
 } from '@mui/icons-material';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { adminAPI } from '../../api/admin.api';
 import toast from 'react-hot-toast';
+import { adminMenuItems } from '../../constants/adminMenuItems';
 
 const DoctorProfile = () => {
     const { doctorId } = useParams();
     const navigate = useNavigate();
     const [doctor, setDoctor] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    const menuItems = [
-        { path: '/admin/dashboard', label: 'Overview', icon: <Assessment /> },
-        { path: '/admin/appointments', label: 'Appointments', icon: <CalendarToday /> },
-        { path: '/admin/doctors', label: 'Doctors', icon: <LocalHospital /> },
-        { path: '/admin/patients', label: 'Patients', icon: <People /> },
-        { path: '/admin/reports', label: 'Reports', icon: <Assessment /> },
-        { path: '/admin/sos-alerts', label: 'Messages', icon: <ChatBubbleOutline />, badge: '5' },
-        { path: '/admin/prescriptions', label: 'Prescriptions', icon: <Assignment /> },
-    ];
+    const [submitting, setSubmitting] = useState(false);
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         fetchDoctorDetails();
@@ -83,22 +87,74 @@ const DoctorProfile = () => {
         navigate('/admin/doctors');
     };
 
-    // Mock data for services (can be extended in backend later)
-    const services = [
-        { name: 'Orthopedic consultation', price: 550 },
-        { name: 'Delivery blocks', price: 460 },
-        { name: 'Ultrasound injection', price: 460 },
-    ];
+    const handleApprove = async () => {
+        try {
+            setSubmitting(true);
+            setErrorMessage('');
+            await adminAPI.approveDoctor(doctorId);
+            setSuccessMessage('Doctor approved successfully!');
+            
+            // Update local state
+            setDoctor(prev => ({
+                ...prev,
+                approvalStatus: 'APPROVED',
+                approvalDate: new Date()
+            }));
+            
+            // Auto-dismiss success message
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            console.error('Error approving doctor:', error);
+            setErrorMessage(error.response?.data?.message || 'Failed to approve doctor');
+            toast.error('Failed to approve doctor');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-    // Mock data for feedback
-    const feedback = {
-        positive: "Dr. [Doctor's Name] was excellent at explaining my condition in simple terms, which helped me understand my treatment options better.",
-        constructive: "I found it a bit challenging to reach out to Dr. [Doctor's Name] with questions between appointments. It would be helpful if there were more accessible communication channels or a nurse hotline."
+    const handleRejectClick = () => {
+        setRejectDialogOpen(true);
+        setRejectionReason('');
+        setErrorMessage('');
+    };
+
+    const handleRejectSubmit = async () => {
+        if (!rejectionReason.trim()) {
+            setErrorMessage('Please enter a rejection reason');
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+            setErrorMessage('');
+            await adminAPI.rejectDoctor(doctorId, rejectionReason);
+            setSuccessMessage('Doctor rejected successfully!');
+            
+            // Update local state
+            setDoctor(prev => ({
+                ...prev,
+                approvalStatus: 'REJECTED',
+                rejectionReason: rejectionReason
+            }));
+            
+            // Close dialog
+            setRejectDialogOpen(false);
+            setRejectionReason('');
+            
+            // Auto-dismiss success message
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            console.error('Error rejecting doctor:', error);
+            setErrorMessage(error.response?.data?.message || 'Failed to reject doctor');
+            toast.error('Failed to reject doctor');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (loading) {
         return (
-            <DashboardLayout menuItems={menuItems}>
+            <DashboardLayout menuItems={adminMenuItems}>
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
                     <CircularProgress size={50} />
                 </Box>
@@ -108,7 +164,7 @@ const DoctorProfile = () => {
 
     if (!doctor) {
         return (
-            <DashboardLayout menuItems={menuItems}>
+            <DashboardLayout menuItems={adminMenuItems}>
                 <Box sx={{ textAlign: 'center', py: 10 }}>
                     <Typography variant="h5" color="textSecondary">Doctor not found</Typography>
                     <Button onClick={handleBack} startIcon={<ArrowBack />} sx={{ mt: 2 }}>
@@ -120,10 +176,10 @@ const DoctorProfile = () => {
     }
 
     return (
-        <DashboardLayout menuItems={menuItems}>
+        <DashboardLayout menuItems={adminMenuItems}>
             <Box sx={{ width: '100%', px: { xs: 1.5, sm: 2, md: 3 }, py: 2 }}>
                 {/* Header */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <IconButton 
                             onClick={handleBack}
@@ -134,24 +190,97 @@ const DoctorProfile = () => {
                         >
                             <ArrowBack />
                         </IconButton>
-                        <Typography variant="h5" fontWeight="bold" sx={{ color: '#1e293b' }}>
-                            Doctor profile
-                        </Typography>
+                        <Box>
+                            <Typography variant="h5" fontWeight="bold" sx={{ color: '#1e293b' }}>
+                                Doctor profile
+                            </Typography>
+                            {doctor && (
+                                <Chip 
+                                    label={doctor.approvalStatus || 'PENDING'}
+                                    size="small"
+                                    color={
+                                        (doctor.approvalStatus || 'PENDING') === 'APPROVED' ? 'success' :
+                                        (doctor.approvalStatus || 'PENDING') === 'REJECTED' ? 'error' :
+                                        'warning'
+                                    }
+                                    sx={{ mt: 0.5, fontWeight: 'bold' }}
+                                />
+                            )}
+                        </Box>
                     </Box>
-                    <Button
-                        variant="contained"
-                        sx={{
-                            borderRadius: 3,
-                            textTransform: 'none',
-                            px: 3,
-                            py: 1,
-                            background: '#2196f3',
-                            '&:hover': { background: '#1976d2' }
-                        }}
-                    >
-                        Doctor Tracking
-                    </Button>
+                    
+                    {/* Approval/Rejection Buttons */}
+                    {doctor && (doctor.approvalStatus === 'PENDING' || !doctor.approvalStatus) && (
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                startIcon={<ApproveIcon />}
+                                onClick={handleApprove}
+                                disabled={submitting}
+                                sx={{
+                                    borderRadius: 3,
+                                    textTransform: 'none',
+                                    px: 3,
+                                    py: 1,
+                                    fontWeight: 600,
+                                    '&:hover': { transform: 'translateY(-2px)' },
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Approve Doctor
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                startIcon={<RejectIcon />}
+                                onClick={handleRejectClick}
+                                disabled={submitting}
+                                sx={{
+                                    borderRadius: 3,
+                                    textTransform: 'none',
+                                    px: 3,
+                                    py: 1,
+                                    fontWeight: 600,
+                                    '&:hover': { transform: 'translateY(-2px)' },
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Reject Doctor
+                            </Button>
+                        </Box>
+                    )}
+                    
+                    {/* Already Approved/Rejected Status */}
+                    {doctor && doctor.approvalStatus === 'APPROVED' && (
+                        <Chip 
+                            icon={<CheckCircle />}
+                            label="Already Approved"
+                            color="success"
+                            sx={{ fontWeight: 'bold', px: 2, py: 2.5 }}
+                        />
+                    )}
+                    {doctor && doctor.approvalStatus === 'REJECTED' && (
+                        <Chip 
+                            icon={<RejectIcon />}
+                            label="Already Rejected"
+                            color="error"
+                            sx={{ fontWeight: 'bold', px: 2, py: 2.5 }}
+                        />
+                    )}
                 </Box>
+
+                {/* Success/Error Messages */}
+                {successMessage && (
+                    <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
+                        {successMessage}
+                    </Alert>
+                )}
+                {errorMessage && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setErrorMessage('')}>
+                        {errorMessage}
+                    </Alert>
+                )}
 
                 {/* Main Content */}
                 <Paper 
@@ -213,13 +342,7 @@ const DoctorProfile = () => {
                                             {doctor.specialization}
                                         </Typography>
 
-                                        <Stack spacing={1}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <LocationOn sx={{ fontSize: 18, color: '#64748b' }} />
-                                                <Typography variant="body2" color="textSecondary">
-                                                    {doctor.address || 'Address not provided'}
-                                                </Typography>
-                                            </Box>
+                                        <Stack spacing={1.5}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <Email sx={{ fontSize: 18, color: '#64748b' }} />
                                                 <Typography variant="body2" color="textSecondary">
@@ -232,96 +355,128 @@ const DoctorProfile = () => {
                                                     {doctor.phone || 'Phone not provided'}
                                                 </Typography>
                                             </Box>
+                                            {doctor.hospitalName && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <LocalHospital sx={{ fontSize: 18, color: '#64748b' }} />
+                                                    <Typography variant="body2" color="textSecondary">
+                                                        {doctor.hospitalName}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                            {doctor.hospitalAddress && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <LocationOn sx={{ fontSize: 18, color: '#64748b' }} />
+                                                    <Typography variant="body2" color="textSecondary">
+                                                        {doctor.hospitalAddress}
+                                                    </Typography>
+                                                </Box>
+                                            )}
                                         </Stack>
 
-                                        <Rating 
-                                            value={4.5} 
-                                            precision={0.5} 
-                                            readOnly 
-                                            size="small"
-                                            sx={{ mt: 1.5, color: '#fbbf24' }}
-                                        />
+                                        <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                                            {doctor.experience && (
+                                                <Chip 
+                                                    label={`${doctor.experience} Years Exp`}
+                                                    size="small"
+                                                    sx={{ bgcolor: alpha('#2196f3', 0.1), color: '#2196f3', fontWeight: 'bold' }}
+                                                />
+                                            )}
+                                            {doctor.hourlyRate && (
+                                                <Chip 
+                                                    label={`₹${doctor.hourlyRate}/hr`}
+                                                    size="small"
+                                                    sx={{ bgcolor: alpha('#10b981', 0.1), color: '#10b981', fontWeight: 'bold' }}
+                                                />
+                                            )}
+                                            {doctor.availability && (
+                                                <Chip 
+                                                    label={doctor.availability}
+                                                    size="small"
+                                                    sx={{ bgcolor: alpha('#f59e0b', 0.1), color: '#f59e0b', fontWeight: 'bold' }}
+                                                />
+                                            )}
+                                        </Box>
                                     </Box>
                                 </Box>
 
-                                {/* Short Bio */}
+                                {/* About Doctor */}
                                 <Box sx={{ mb: 4 }}>
                                     <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                                        Short Bio
+                                        About Dr. {doctor.name}
                                     </Typography>
-                                    <Box component="ul" sx={{ pl: 2, color: '#475569', lineHeight: 1.8 }}>
-                                        <li>
-                                            <Typography variant="body2">
-                                                <strong>Positive Feedback:</strong> "{feedback.positive.replace("[Doctor's Name]", doctor.name)}"
+                                    <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid #e2e8f0' }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                                                {doctor.about || 'No biography provided yet.'}
                                             </Typography>
-                                        </li>
-                                        <li style={{ marginTop: 8 }}>
-                                            <Typography variant="body2">
-                                                <strong>Constructive Feedback:</strong> "{feedback.constructive.replace("[Doctor's Name]", doctor.name)}"
-                                            </Typography>
-                                        </li>
-                                    </Box>
-                                    <Button 
-                                        sx={{ 
-                                            mt: 1, 
-                                            textTransform: 'none', 
-                                            color: '#2196f3',
-                                            fontWeight: 'bold'
-                                        }}
-                                    >
-                                        Read more
-                                    </Button>
+                                        </CardContent>
+                                    </Card>
                                 </Box>
 
-                                {/* Services and Price List */}
+                                {/* Professional Details */}
                                 <Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                                        <Box 
-                                            sx={{ 
-                                                width: 40, 
-                                                height: 40, 
-                                                borderRadius: '50%', 
-                                                bgcolor: alpha('#10b981', 0.1),
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
-                                            <Typography sx={{ color: '#10b981', fontWeight: 'bold' }}>$</Typography>
-                                        </Box>
-                                        <Typography variant="h6" fontWeight="bold">
-                                            Services and price list
-                                        </Typography>
-                                    </Box>
-
-                                    <Box sx={{ bgcolor: 'white', borderRadius: 2, overflow: 'hidden' }}>
-                                        {services.map((service, index) => (
-                                            <Box 
-                                                key={index}
-                                                sx={{ 
-                                                    display: 'flex', 
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    px: 2,
-                                                    py: 1.5,
-                                                    borderBottom: index < services.length - 1 ? '1px solid #f1f5f9' : 'none'
-                                                }}
-                                            >
-                                                <Typography variant="body2">{service.name}</Typography>
-                                                <Typography variant="body2" fontWeight="bold">${service.price}</Typography>
-                                            </Box>
-                                        ))}
-                                    </Box>
-                                    <Button 
-                                        sx={{ 
-                                            mt: 1, 
-                                            textTransform: 'none', 
-                                            color: '#2196f3',
-                                            fontWeight: 'bold'
-                                        }}
-                                    >
-                                        Read more
-                                    </Button>
+                                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>
+                                        Professional Details
+                                    </Typography>
+                                    <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid #e2e8f0' }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Grid container spacing={3}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="textSecondary">Registration Number</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">
+                                                        {doctor.registrationNumber || 'Not provided'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="textSecondary">Specialization</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">
+                                                        {doctor.specialization || 'General Physician'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="textSecondary">Experience</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">
+                                                        {doctor.experience ? `${doctor.experience} Years` : 'Not specified'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="caption" color="textSecondary">Consultation Fee</Typography>
+                                                    <Typography variant="body2" fontWeight="bold">
+                                                        ₹{doctor.hourlyRate || 500}/hour
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={12}>
+                                                    <Typography variant="caption" color="textSecondary">Languages</Typography>
+                                                    <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                                                        {(doctor.languages && doctor.languages.length > 0) ? (
+                                                            doctor.languages.map((lang, idx) => (
+                                                                <Chip 
+                                                                    key={idx}
+                                                                    label={lang} 
+                                                                    size="small" 
+                                                                    sx={{ 
+                                                                        bgcolor: alpha('#7c3aed', 0.1), 
+                                                                        color: '#7c3aed',
+                                                                        fontSize: '0.75rem'
+                                                                    }}
+                                                                />
+                                                            ))
+                                                        ) : (
+                                                            <Typography variant="body2" fontWeight="bold">English, Hindi</Typography>
+                                                        )}
+                                                    </Box>
+                                                </Grid>
+                                                {doctor.gender && (
+                                                    <Grid item xs={12} sm={6}>
+                                                        <Typography variant="caption" color="textSecondary">Gender</Typography>
+                                                        <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
+                                                            {doctor.gender}
+                                                        </Typography>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
                                 </Box>
                             </Grid>
 
@@ -568,6 +723,49 @@ const DoctorProfile = () => {
                     </Box>
                 </Paper>
             </Box>
+
+            {/* Rejection Reason Dialog */}
+            <Dialog
+                open={rejectDialogOpen}
+                onClose={() => !submitting && setRejectDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Reject Doctor Application</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Please provide a reason for rejecting Dr. {doctor?.name}'s application.
+                        This will be recorded for audit purposes.
+                    </Typography>
+                    <TextField
+                        autoFocus
+                        multiline
+                        rows={4}
+                        fullWidth
+                        label="Rejection Reason"
+                        placeholder="Enter reason for rejection (e.g., incomplete documents, invalid license, etc.)"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        disabled={submitting}
+                        required
+                        error={errorMessage && !rejectionReason.trim()}
+                        helperText={errorMessage && !rejectionReason.trim() ? errorMessage : ''}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setRejectDialogOpen(false)} disabled={submitting}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleRejectSubmit}
+                        disabled={submitting || !rejectionReason.trim()}
+                    >
+                        {submitting ? <CircularProgress size={20} /> : 'Reject Doctor'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </DashboardLayout>
     );
 };
