@@ -65,11 +65,7 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
-
-        if (!window.location.pathname.includes('/login')) {
-          console.log('[API] Redirecting to login...');
-          window.location.href = '/login';
-        }
+        // Don't redirect - let React Router handle it
         return Promise.reject(refreshError);
       }
     }
