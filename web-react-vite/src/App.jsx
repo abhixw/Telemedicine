@@ -21,8 +21,10 @@ import PatientLogin from './pages/Auth/PatientLogin';
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminAppointments from './pages/Admin/Appointments';
 import DoctorsManagement from './pages/Admin/DoctorsManagement';
+import DoctorApproval from './pages/Admin/DoctorApproval';
 import DoctorProfile from './pages/Admin/DoctorProfile';
 import PatientsManagement from './pages/Admin/PatientsManagement';
+import PatientProfile from './pages/Admin/PatientProfile';
 import DoctorDashboard from './pages/Doctor/Dashboard';
 import DoctorProfilePage from './pages/Doctor/Profile';
 import DoctorAppointments from './pages/Doctor/Appointments';
@@ -132,6 +134,11 @@ function App() {
             <DoctorsManagement />
           </ProtectedRoute>
         } />
+        <Route path="/admin/doctors/approval" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DoctorApproval />
+          </ProtectedRoute>
+        } />
         <Route path="/admin/doctors/:doctorId" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <DoctorProfile />
@@ -140,6 +147,11 @@ function App() {
         <Route path="/admin/patients" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <PatientsManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/patients/:patientId" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <PatientProfile />
           </ProtectedRoute>
         } />
         <Route path="/admin/appointments" element={
