@@ -75,12 +75,109 @@ export const adminAPI = {
   },
 
   /**
+   * Get patient by ID
+   * @param {string} patientId - Patient ID
+   * @returns {Promise} Patient details
+   */
+  getPatientById: async (patientId) => {
+    const response = await api.get(`/v1/admin/patients/${patientId}`);
+    return response.data;
+  },
+
+  /**
    * Get all appointments
    * @param {Object} params - Query parameters (status, date, search)
    * @returns {Promise} Appointments list
    */
   getAllAppointments: async (params = {}) => {
     const response = await api.get('/v1/admin/appointments', { params });
+    return response.data;
+  },
+
+  /**
+   * Get appointments trend
+   * @param {number} days - Number of days (default: 30)
+   * @returns {Promise} Appointments trend data
+   */
+  getAppointmentsTrend: async (days = 30) => {
+    const response = await api.get('/v1/admin/analytics/appointments-trend', { params: { days } });
+    return response.data;
+  },
+
+  /**
+   * Get appointment status distribution
+   * @returns {Promise} Status distribution data
+   */
+  getStatusDistribution: async () => {
+    const response = await api.get('/v1/admin/analytics/status-distribution');
+    return response.data;
+  },
+
+  /**
+   * Get top performing doctors
+   * @param {number} limit - Number of doctors (default: 5)
+   * @returns {Promise} Top doctors data
+   */
+  getTopDoctors: async (limit = 5) => {
+    const response = await api.get('/v1/admin/analytics/top-doctors', { params: { limit } });
+    return response.data;
+  },
+
+  /**
+   * Get peak hours analysis
+   * @returns {Promise} Peak hours data
+   */
+  getPeakHours: async () => {
+    const response = await api.get('/v1/admin/analytics/peak-hours');
+    return response.data;
+  },
+
+  /**
+   * Get specialty distribution
+   * @returns {Promise} Specialty distribution data
+   */
+  getSpecialtyDistribution: async () => {
+    const response = await api.get('/v1/admin/analytics/specialty-distribution');
+    return response.data;
+  },
+
+  /**
+   * Get revenue analytics
+   * @param {number} days - Number of days (default: 30)
+   * @returns {Promise} Revenue analytics data
+   */
+  getRevenueAnalytics: async (days = 30) => {
+    const response = await api.get('/v1/admin/analytics/revenue', { params: { days } });
+    return response.data;
+  },
+
+  /**
+   * Get pending doctors for approval
+   * @returns {Promise} Pending doctors list
+   */
+  getPendingDoctors: async () => {
+    const response = await api.get('/v1/admin/doctors/pending');
+    return response.data;
+  },
+
+  /**
+   * Approve a doctor
+   * @param {string} doctorId - Doctor ID
+   * @returns {Promise} Approval response
+   */
+  approveDoctor: async (doctorId) => {
+    const response = await api.put(`/v1/admin/doctors/${doctorId}/approve`);
+    return response.data;
+  },
+
+  /**
+   * Reject a doctor
+   * @param {string} doctorId - Doctor ID
+   * @param {string} reason - Rejection reason
+   * @returns {Promise} Rejection response
+   */
+  rejectDoctor: async (doctorId, reason) => {
+    const response = await api.put(`/v1/admin/doctors/${doctorId}/reject`, { reason });
     return response.data;
   },
 };
