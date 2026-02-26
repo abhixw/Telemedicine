@@ -241,7 +241,11 @@ class DoctorController {
         try {
             const { specialization, search, gender, minRating, minExperience, maxExperience, minFee, maxFee } = req.query;
             
-            let query = { isActive: true };
+            // Only show approved doctors to patients
+            let query = { 
+                isActive: true,
+                approvalStatus: 'APPROVED'
+            };
             
             // Search across name, specialization, hospitalName
             if (search) {
