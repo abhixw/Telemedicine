@@ -15,7 +15,9 @@ import {
     Chip,
     TextField,
     InputAdornment,
-    CircularProgress
+    CircularProgress,
+    Tabs,
+    Tab
 } from '@mui/material';
 import {
     Search,
@@ -32,22 +34,14 @@ import {
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { adminAPI } from '../../api/admin.api';
 import toast from 'react-hot-toast';
+import { adminMenuItems } from '../../constants/adminMenuItems';
 
 const DoctorsManagement = () => {
     const navigate = useNavigate();
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-
-    const menuItems = [
-        { path: '/admin/dashboard', label: 'Overview', icon: <Assessment /> },
-        { path: '/admin/appointments', label: 'Appointments', icon: <CalendarToday /> },
-        { path: '/admin/doctors', label: 'Doctors', icon: <LocalHospital /> },
-        { path: '/admin/patients', label: 'Patients', icon: <People /> },
-        { path: '/admin/reports', label: 'Reports', icon: <Assessment /> },
-        { path: '/admin/sos-alerts', label: 'Messages', icon: <ChatBubbleOutline />, badge: '5' },
-        { path: '/admin/prescriptions', label: 'Prescriptions', icon: <Assignment /> },
-    ];
+    const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, PENDING, APPROVED, REJECTED
 
     useEffect(() => {
         fetchDoctors();
@@ -70,14 +64,21 @@ const DoctorsManagement = () => {
         navigate(`/admin/doctors/${doctor._id}`);
     };
 
-    const filteredDoctors = doctors.filter(doctor =>
-        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredDoctors = doctors.filter(doctor => {
+        // Filter by search term
+        const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doctor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Filter by approval status
+        const matchesStatus = statusFilter === 'ALL' || 
+            (doctor.approvalStatus || 'PENDING') === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
 
     return (
-        <DashboardLayout menuItems={menuItems}>
+        <DashboardLayout menuItems={adminMenuItems}>
             <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                     <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a237e' }}>
@@ -106,6 +107,32 @@ const DoctorsManagement = () => {
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
+                
+                {/* Status Filter Tabs */}
+                <Box sx={{ mt: 2, borderBottom: 1, borderColor: 'divider' }}>
+                    <Tabs 
+                        value={statusFilter} 
+                        onChange={(e, newValue) => setStatusFilter(newValue)}
+                        aria-label="doctor status filter"
+                    >
+                        <Tab 
+                            label={`All (${doctors.length})`} 
+                            value="ALL" 
+                        />
+                        <Tab 
+                            label={`Pending (${doctors.filter(d => (d.approvalStatus || 'PENDING') === 'PENDING').length})`} 
+                            value="PENDING" 
+                        />
+                        <Tab 
+                            label={`Approved (${doctors.filter(d => d.approvalStatus === 'APPROVED').length})`} 
+                            value="APPROVED" 
+                        />
+                        <Tab 
+                            label={`Rejected (${doctors.filter(d => d.approvalStatus === 'REJECTED').length})`} 
+                            value="REJECTED" 
+                        />
+                    </Tabs>
+                </Box>
             </Paper>
 
             {/* Doctors Table */}
@@ -116,6 +143,7 @@ const DoctorsManagement = () => {
                             <TableCell fontWeight="bold">Doctor</TableCell>
                             <TableCell fontWeight="bold">Specialization</TableCell>
                             <TableCell fontWeight="bold">License No.</TableCell>
+                            <TableCell fontWeight="bold">Approval Status</TableCell>
                             <TableCell fontWeight="bold">Status</TableCell>
                             <TableCell fontWeight="bold" align="right">Actions</TableCell>
                         </TableRow>
@@ -123,14 +151,14 @@ const DoctorsManagement = () => {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                                <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
                                     <CircularProgress size={40} />
                                     <Typography sx={{ mt: 2 }}>Loading doctors data...</Typography>
                                 </TableCell>
                             </TableRow>
                         ) : filteredDoctors.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                                <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
                                     <Typography color="textSecondary">No doctors found matching your search.</Typography>
                                 </TableCell>
                             </TableRow>
@@ -156,6 +184,18 @@ const DoctorsManagement = () => {
                                         />
                                     </TableCell>
                                     <TableCell>{doctor.licenseNumber}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={doctor.approvalStatus || 'PENDING'}
+                                            size="small"
+                                            color={
+                                                (doctor.approvalStatus || 'PENDING') === 'APPROVED' ? 'success' :
+                                                (doctor.approvalStatus || 'PENDING') === 'REJECTED' ? 'error' :
+                                                'warning'
+                                            }
+                                            sx={{ fontWeight: 'bold' }}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <Chip
                                             icon={doctor.isActive ? <CheckCircle size={16} /> : <Cancel size={16} />}
