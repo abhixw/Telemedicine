@@ -1,7 +1,7 @@
 /**
  * Doctor Dashboard (Doctor Landing Page)
  * This is the main landing page that appears after doctor login/registration
- * Shows appointments, patients, stats, and comprehensive dashboard sections
+ * Shows appointments, patients, stats, charts and comprehensive dashboard sections
  */
 
 import React, { useState, useEffect } from 'react';
@@ -28,7 +28,8 @@ import {
   TableRow,
   CircularProgress,
   Alert,
-  alpha
+  alpha,
+  Skeleton
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -46,6 +47,23 @@ import {
   TrendingUp,
   TrendingDown
 } from '@mui/icons-material';
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { doctorAPI } from '../../api/doctor.api';
 
@@ -131,6 +149,55 @@ const DoctorDashboard = () => {
   const [todayAppointments, setTodayAppointments] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [doctorProfile, setDoctorProfile] = useState(null);
+  
+  // Chart data states
+  const [appointmentsTrend, setAppointmentsTrend] = useState([]);
+  const [consultationTypes, setConsultationTypes] = useState([]);
+  const [appointmentStatus, setAppointmentStatus] = useState([]);
+  const [earningsTrend, setEarningsTrend] = useState([]);
+  const [patientDemographics, setPatientDemographics] = useState([]);
+  const [chartsLoading, setChartsLoading] = useState(true);
+
+  // Chart colors
+  const CHART_COLORS = {
+    primary: '#7c3aed',
+    secondary: '#2563eb',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#ef4444',
+    info: '#06b6d4',
+    pink: '#ec4899',
+    indigo: '#6366f1'
+  };
+
+  const PIE_COLORS = ['#7c3aed', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+
+  // Chart Card Component
+  const ChartCard = ({ title, children, loading }) => (
+    <Card sx={{ 
+      borderRadius: 3, 
+      boxShadow: 'none', 
+      border: '1px solid #e2e8f0', 
+      height: '100%', 
+      bgcolor: 'white',
+      width: '100%'
+    }}>
+      <CardContent sx={{ p: { xs: 2, md: 3 }, width: '100%', boxSizing: 'border-box' }}>
+        <Typography variant="h6" fontWeight="600" sx={{ mb: 3, color: '#475569', fontSize: { xs: '0.95rem', md: '1.1rem' } }}>
+          {title}
+        </Typography>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 320 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Box sx={{ width: '100%' }}>
+            {children}
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   // Menu items for sidebar
   const menuItems = [
@@ -156,7 +223,7 @@ const DoctorDashboard = () => {
       // Fetch all dashboard data in parallel
       const [statsResponse, appointmentsResponse, profileResponse] = await Promise.all([
         doctorAPI.getDashboardStats(),
-        doctorAPI.getMyAppointments({ limit: 20 }),
+        doctorAPI.getMyAppointments({ limit: 50 }),
         doctorAPI.getMyProfile()
       ]);
 
@@ -169,7 +236,7 @@ const DoctorDashboard = () => {
         setStats(statsResponse.data);
       }
 
-      // Set appointments
+      // Set appointments and process chart data
       if (appointmentsResponse.success) {
         const appointments = appointmentsResponse.data.appointments || [];
         
@@ -194,6 +261,9 @@ const DoctorDashboard = () => {
         
         setTodayAppointments(todayAppts);
         setUpcomingAppointments(upcomingAppts);
+        
+        // Generate chart data from appointments
+        generateChartData(appointments);
       }
 
       // Set profile
@@ -202,11 +272,105 @@ const DoctorDashboard = () => {
       }
 
       setLoading(false);
+      setChartsLoading(false);
     } catch (err) {
       console.error('Dashboard data fetch error:', err);
       setError(err.message || 'Failed to load dashboard data');
       setLoading(false);
+      setChartsLoading(false);
     }
+  };
+
+  const generateChartData = (appointments) => {
+    // 1. Appointments Trend (Last 7 days)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const dayAppts = appointments.filter(apt => {
+        const aptDate = new Date(apt.appointmentDate);
+        aptDate.setHours(0, 0, 0, 0);
+        return aptDate.getTime() === date.getTime();
+      });
+      
+      last7Days.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        appointments: dayAppts.length,
+        completed: dayAppts.filter(a => a.status === 'completed').length,
+        cancelled: dayAppts.filter(a => a.status === 'cancelled').length
+      });
+    }
+    setAppointmentsTrend(last7Days);
+
+    // 2. Consultation Types Distribution
+    const videoCount = appointments.filter(a => a.consultationType === 'video').length;
+    const inPersonCount = appointments.filter(a => a.consultationType === 'in-person').length;
+    setConsultationTypes([
+      { name: 'Video Consultation', value: videoCount, percentage: appointments.length ? ((videoCount / appointments.length) * 100).toFixed(1) : 0 },
+      { name: 'In-Person', value: inPersonCount, percentage: appointments.length ? ((inPersonCount / appointments.length) * 100).toFixed(1) : 0 }
+    ]);
+
+    // 3. Appointment Status Distribution
+    const statusCounts = {};
+    appointments.forEach(apt => {
+      statusCounts[apt.status] = (statusCounts[apt.status] || 0) + 1;
+    });
+    
+    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+      name: status.charAt(0).toUpperCase() + status.slice(1),
+      value: count,
+      percentage: appointments.length ? ((count / appointments.length) * 100).toFixed(1) : 0
+    }));
+    setAppointmentStatus(statusData);
+
+    // 4. Earnings Trend (Last 6 months)
+    const last6Months = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date();
+      monthDate.setMonth(monthDate.getMonth() - i);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      
+      const monthAppts = appointments.filter(apt => {
+        const aptDate = new Date(apt.appointmentDate);
+        return aptDate >= monthStart && aptDate <= monthEnd && apt.paymentStatus === 'paid';
+      });
+      
+      const earnings = monthAppts.reduce((sum, apt) => sum + (apt.amount || 0), 0);
+      
+      last6Months.push({
+        month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+        earnings: earnings,
+        appointments: monthAppts.length
+      });
+    }
+    setEarningsTrend(last6Months);
+
+    // 5. Patient Demographics (Age groups)
+    const ageGroups = {
+      '0-18': 0,
+     '19-30': 0,
+      '31-45': 0,
+      '46-60': 0,
+      '60+': 0
+    };
+    
+    appointments.forEach(apt => {
+      const age = apt.patientId?.age || 0;
+      if (age <= 18) ageGroups['0-18']++;
+      else if (age <= 30) ageGroups['19-30']++;
+      else if (age <= 45) ageGroups['31-45']++;
+      else if (age <= 60) ageGroups['46-60']++;
+      else ageGroups['60+']++;
+    });
+    
+    const demographics = Object.entries(ageGroups).map(([age, count]) => ({
+      ageGroup: age,
+      patients: count
+    }));
+    setPatientDemographics(demographics);
   };
 
   if (loading) {
@@ -236,12 +400,12 @@ const DoctorDashboard = () => {
     <DashboardLayout menuItems={menuItems}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a237e', mb: 1 }}>
-          Welcome back
-        </Typography>
+        {/* <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a237e', mb: 1 }}>
+          
+        </Typography> */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a237e' }}>
-             {doctorProfile?.name || 'Doctor'} 👋
+            Welcome back {doctorProfile?.name || 'Doctor'}
           </Typography>
         </Box>
       </Box>
@@ -290,13 +454,212 @@ const DoctorDashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Charts Section */}
+      <Grid 
+        container 
+        spacing={{ xs: 2, md: 2.5 }}
+        sx={{
+          width: '100%',
+          m: 0,
+          mb: 4
+        }}
+      >
+        {/* Appointments Trend - Full Width */}
+        <Grid size={{ xs: 12 }}>
+          <ChartCard title="Appointments Trend (Last 7 Days)" loading={chartsLoading}>
+            <ResponsiveContainer width="100%" height={380}>
+              <AreaChart data={appointmentsTrend}>
+                <defs>
+                  <linearGradient id="colorAppointments" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: 8, 
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="appointments"
+                  stroke={CHART_COLORS.primary}
+                  strokeWidth={2.5}
+                  fill="url(#colorAppointments)"
+                  name="Total Appointments"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="completed"
+                  stroke={CHART_COLORS.success}
+                  strokeWidth={2.5}
+                  fill="url(#colorCompleted)"
+                  name="Completed"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Grid>
+
+        {/* Earnings Trend */}
+        <Grid size={{ xs: 12, lg: 8 }}>
+          <ChartCard title="Earnings Trend (Last 6 Months)" loading={chartsLoading}>
+            <ResponsiveContainer width="100%" height={380}>
+              <BarChart data={earningsTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: 8, 
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                  formatter={(value) => [`₹${value.toLocaleString()}`, 'Earnings']}
+                />
+                <Bar 
+                  dataKey="earnings" 
+                  fill={CHART_COLORS.success} 
+                  radius={[8, 8, 0, 0]} 
+                  name="Earnings"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Grid>
+
+        {/* Appointment Status */}
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <ChartCard title="Appointment Status Distribution" loading={chartsLoading}>
+            <ResponsiveContainer width="100%" height={380}>
+              <PieChart>
+                <Pie
+                  data={appointmentStatus}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name}: ${percentage}%`}
+                  outerRadius={100}
+                  innerRadius={60}
+                  fill="#8884d8"
+                  dataKey="value"
+                  paddingAngle={3}
+                >
+                  {appointmentStatus.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: 8, 
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Grid>
+
+        {/* Consultation Types */}
+        <Grid size={{ xs: 12, lg: 6 }}>
+          <ChartCard title="Consultation Types Distribution" loading={chartsLoading}>
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart>
+                <Pie
+                  data={consultationTypes}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name}: ${percentage}%`}
+                  outerRadius={90}
+                  fill="#8884d8"
+                  dataKey="value"
+                  paddingAngle={5}
+                >
+                  {consultationTypes.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: 8, 
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Grid>
+
+        {/* Patient Demographics */}
+        <Grid size={{ xs: 12, lg: 6 }}>
+          <ChartCard title="Patient Demographics by Age Group" loading={chartsLoading}>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={patientDemographics}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="ageGroup" 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: 8, 
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Bar 
+                  dataKey="patients" 
+                  fill={CHART_COLORS.indigo} 
+                  radius={[8, 8, 0, 0]} 
+                  name="Patients" 
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Grid>
+      </Grid>
+
       <Grid container spacing={3}>
         {/* Today's Schedule */}
         <Grid item xs={12} lg={6}>
           <Paper sx={{ p: 3, borderRadius: 4, boxShadow: '0 2px 10px rgba(0,0,0,0.08)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" fontWeight="bold">
-                📅 Today's Schedule
+                Today's Schedule
               </Typography>
               <Button variant="text" size="small" sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 View All
