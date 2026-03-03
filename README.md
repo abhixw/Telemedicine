@@ -113,9 +113,8 @@ MongoDB Database
 
 👤 Author
 
-Kuldeep Raj
+Abhinav Shrimali
 Full-Stack Developer
-Focus: React Native, Node.js, Backend Systems
 
 📄 License
 
